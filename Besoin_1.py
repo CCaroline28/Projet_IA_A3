@@ -227,29 +227,20 @@ carte_puissance.save("carte_puissance.html")
 # CARTE 3 : HEATMAP DE DENSITÉ
 # =====================================================
 
-# Création d'une carte centrée sur la France
+# Création de la carte centrée sur la France
 carte_heatmap = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# Extraction des coordonnées pour la carte de chaleur
+# Extraction des coordonnées GPS
 points_heatmap = df[
     ["consolidated_latitude", "consolidated_longitude"]
 ].values.tolist()
 
-# Création de la heatmap
-# Carte 3 : Heatmap de densité mieux équilibrée
-carte_heatmap = folium.Map(location=[46.5, 2.5], zoom_start=6)
-
-points_heatmap = df[
-    ["consolidated_latitude", "consolidated_longitude"]
-].values.tolist()
-
+# Ajout de la carte de chaleur
 HeatMap(
     points_heatmap,
-    radius=18,
-    blur=22,
-    min_opacity=0.35,
-    max_zoom=6,
-    max_val=0.6,
+    radius=15,
+    blur=20,
+    min_opacity=0.3,
     gradient={
         0.2: "blue",
         0.4: "cyan",
@@ -258,7 +249,13 @@ HeatMap(
         1.0: "red"
     }
 ).add_to(carte_heatmap)
+
+# Ajout du titre
+ajouter_titre(
+    carte_heatmap,
+    "Carte de chaleur de la densité des bornes IRVE"
 )
+
 # Légende spécifique à la heatmap
 legende_heatmap = """
 <div style="
