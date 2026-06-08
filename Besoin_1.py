@@ -1,287 +1,163 @@
-#commande pour installer les bibliothèques : pip install pandas folium plotly scikit-learn 
 import pandas as pd
 import folium
 from folium.plugins import HeatMap
 
 # =====================================================
-# CHARGEMENT ET PRÉPARATION DES DONNÉES
+# 1. CHARGEMENT DES DONNÉES
 # =====================================================
 
-# Chargement du fichier CSV nettoyé issu de la partie Big Data
 df = pd.read_csv("export_IA.csv")
 
-# Sélection des colonnes utiles pour les cartes
-colonnes = [
-    "implantation_station",
-    "puissance_nominale",
-    "consolidated_longitude",
-    "consolidated_latitude"
-]
+# Conversion des coordonnées en numérique
+df["consolidated_longitude"] = pd.to_numeric(
+    df["consolidated_longitude"],
+    errors="coerce"
+)
 
-# Suppression des lignes incomplètes
-df = df[colonnes].dropna()
+df["consolidated_latitude"] = pd.to_numeric(
+    df["consolidated_latitude"],
+    errors="coerce"
+)
 
-# Filtrage géographique pour conserver la France métropolitaine
+# Suppression des coordonnées manquantes
+df = df.dropna(
+    subset=["consolidated_longitude", "consolidated_latitude"]
+)
+
+# Filtrage France métropolitaine
 df = df[
     (df["consolidated_longitude"] >= -5.5) &
     (df["consolidated_longitude"] <= 9.5) &
     (df["consolidated_latitude"] >= 41) &
-    (df["consolidated_latitude"] <= 51.5)]
-
-
-# =====================================================
-# CRÉATION DES CATÉGORIES DE PUISSANCE
-# =====================================================
-
-# Fonction qui transforme une puissance numérique en catégorie lisible
-def categorie_puissance(p):
-    if p <= 22:
-        return "Normale ≤ 22 kW"
-    elif p <= 50:
-        return "Rapide 23-50 kW"
-    elif p <= 150:
-        return "Très rapide 51-150 kW"
-    else:
-        return "Ultra rapide > 150 kW"
-
-# Ajout d'une colonne de catégorie de puissance
-df["categorie_puissance"] = df["puissance_nominale"].apply(categorie_puissance)
-
-# Échantillon utilisé pour alléger les cartes interactives
-df_sample = df.sample(min(5000, len(df)), random_state=42)
-
-# =====================================================
-# FONCTION POUR AJOUTER UN TITRE À UNE CARTE
-# =====================================================
-
-def ajouter_titre(carte, titre):
-    titre_html = f"""
-    <h3 align="center" style="
-        font-size:22px;
-        background-color:white;
-        padding:10px;
-        border:2px solid grey;
-        z-index:9999;">
-        <b>{titre}</b>
-    </h3>
-    """
-    carte.get_root().html.add_child(folium.Element(titre_html))
-
-
-# =====================================================
-# CARTE 1 : TYPE D'IMPLANTATION
-# =====================================================
-
-# Création d'une carte centrée sur la France
-carte_implantation = folium.Map(location=[46.5, 2.5], zoom_start=6)
-
-# Récupération des différents types d'implantation
-types_implantation = df_sample["implantation_station"].unique()
-
-# Palette de couleurs pour différencier les types d'implantation
-palette = [
-    "red", "blue", "green", "purple", "orange",
-    "darkred", "darkblue", "darkgreen", "cadetblue",
-    "darkpurple", "pink", "lightblue", "lightgreen",
-    "gray", "black"
+    (df["consolidated_latitude"] <= 51.5)
 ]
 
-# Attribution automatique d'une couleur différente à chaque type
-couleurs_implantation = {
-    type_implantation: palette[i % len(palette)]
-    for i, type_implantation in enumerate(types_implantation)
-}
+print("Nombre de points utilisés :", len(df))
 
-# Ajout des points sur la carte
-for _, row in df_sample.iterrows():
-    couleur = couleurs_implantation[row["implantation_station"]]
+# =====================================================
+# 2. AGRÉGATION DES POINTS PROCHES
+# =====================================================
 
-    folium.CircleMarker(
-        location=[
-            row["consolidated_latitude"],
-            row["consolidated_longitude"]
-        ],
-        radius=3,
-        color=couleur,
-        fill=True,
-        fill_color=couleur,
-        fill_opacity=0.7,
-        popup=f"""
-        <b>Type d'implantation :</b> {row['implantation_station']}<br>
-        <b>Puissance nominale :</b> {row['puissance_nominale']} kW
-        """
-    ).add_to(carte_implantation)
+# On regroupe les bornes proches pour obtenir une densité plus lisible
+df["lat_zone"] = df["consolidated_latitude"].round(2)
+df["lon_zone"] = df["consolidated_longitude"].round(2)
 
-# Ajout du titre
-ajouter_titre(
-    carte_implantation,
-    "Carte des bornes selon le type d’implantation"
+densite = (
+    df.groupby(["lat_zone", "lon_zone"])
+    .size()
+    .reset_index(name="nombre_bornes")
 )
 
-# Légende spécifique à la carte d'implantation
-legende_implantation = """
-<div style="
-position: fixed;
-bottom: 50px;
-left: 50px;
-width: 300px;
-max-height: 320px;
-overflow-y: auto;
-background-color: white;
-border: 2px solid grey;
-z-index: 9999;
-font-size: 13px;
-padding: 10px;">
-<b>Légende - Type d’implantation</b><br>
-Chaque couleur représente un type d’implantation de station.<br><br>
-"""
+# Limitation du poids des zones très denses
+# Cela évite que Paris écrase visuellement les autres métropoles
+seuil_max = densite["nombre_bornes"].quantile(0.85)
+densite["poids"] = densite["nombre_bornes"].clip(upper=seuil_max)
 
-for type_implantation, couleur in couleurs_implantation.items():
-    legende_implantation += f"""
-    <span style="color:{couleur};">●</span> {type_implantation}<br>
-    """
+print("Nombre de zones affichées :", len(densite))
+print("Seuil maximum appliqué :", seuil_max)
 
-legende_implantation += """
-<br>
-<i>Objectif : identifier la répartition spatiale des bornes selon leur implantation.</i>
-</div>
-"""
-
-carte_implantation.get_root().html.add_child(folium.Element(legende_implantation))
-
-# Sauvegarde de la carte
-carte_implantation.save("carte_implantation.html")
-
-
-# =====================================================
-# CARTE 2 : CATÉGORIE DE PUISSANCE
-# =====================================================
-
-# Création d'une carte centrée sur la France
-carte_puissance = folium.Map(location=[46.5, 2.5], zoom_start=6)
-
-# Couleurs fixes pour les catégories de puissance
-couleurs_puissance = {
-    "Normale ≤ 22 kW": "blue",
-    "Rapide 23-50 kW": "green",
-    "Très rapide 51-150 kW": "orange",
-    "Ultra rapide > 150 kW": "red"
-}
-
-# Ajout des bornes sur la carte selon leur catégorie de puissance
-for _, row in df_sample.iterrows():
-    couleur = couleurs_puissance[row["categorie_puissance"]]
-
-    folium.CircleMarker(
-        location=[
-            row["consolidated_latitude"],
-            row["consolidated_longitude"]
-        ],
-        radius=3,
-        color=couleur,
-        fill=True,
-        fill_color=couleur,
-        fill_opacity=0.7,
-        popup=f"""
-        <b>Catégorie :</b> {row['categorie_puissance']}<br>
-        <b>Puissance nominale :</b> {row['puissance_nominale']} kW
-        """
-    ).add_to(carte_puissance)
-
-# Ajout du titre
-ajouter_titre(
-    carte_puissance,
-    "Carte des bornes selon la puissance nominale"
-)
-
-# Légende spécifique à la carte de puissance
-legende_puissance = """
-<div style="
-position: fixed;
-bottom: 50px;
-left: 50px;
-width: 300px;
-background-color: white;
-border: 2px solid grey;
-z-index: 9999;
-font-size: 14px;
-padding: 10px;">
-<b>Légende - Puissance nominale</b><br>
-Les couleurs indiquent la catégorie de puissance des bornes.<br><br>
-<span style="color:blue;">●</span> Normale ≤ 22 kW<br>
-<span style="color:green;">●</span> Rapide 23-50 kW<br>
-<span style="color:orange;">●</span> Très rapide 51-150 kW<br>
-<span style="color:red;">●</span> Ultra rapide > 150 kW<br>
-<br>
-<i>Objectif : repérer les zones équipées en bornes rapides ou ultra-rapides.</i>
-</div>
-"""
-
-carte_puissance.get_root().html.add_child(folium.Element(legende_puissance))
-
-# Sauvegarde de la carte
-carte_puissance.save("carte_puissance.html")
-
-
-# =====================================================
-# CARTE 3 : HEATMAP DE DENSITÉ
-# =====================================================
-
-# Création de la carte centrée sur la France
-carte_heatmap = folium.Map(location=[46.5, 2.5], zoom_start=6)
-
-# Extraction des coordonnées GPS
-points_heatmap = df[
-    ["consolidated_latitude", "consolidated_longitude"]
+# Format attendu par Folium HeatMap :
+# [latitude, longitude, poids]
+points_heatmap = densite[
+    ["lat_zone", "lon_zone", "poids"]
 ].values.tolist()
 
-# Ajout de la carte de chaleur
+# =====================================================
+# 3. CRÉATION DE LA CARTE
+# =====================================================
+
+carte_heatmap = folium.Map(
+    location=[46.5, 2.5],
+    zoom_start=6,
+    tiles="OpenStreetMap"
+)
+
+# =====================================================
+# 4. CRÉATION DE LA HEATMAP
+# =====================================================
+
 HeatMap(
     points_heatmap,
-    radius=15,
-    blur=20,
-    min_opacity=0.3,
+    radius=9,
+    blur=7,
+    min_opacity=0.08,
     gradient={
-        0.2: "blue",
-        0.4: "cyan",
-        0.6: "lime",
-        0.8: "yellow",
-        1.0: "red"
+        0.20: "blue",
+        0.40: "cyan",
+        0.60: "green",
+        0.78: "yellow",
+        0.90: "orange",
+        1.00: "red"
     }
 ).add_to(carte_heatmap)
 
-# Ajout du titre
-ajouter_titre(
-    carte_heatmap,
-    "Carte de chaleur de la densité des bornes IRVE"
+# =====================================================
+# 5. TITRE
+# =====================================================
+
+titre_html = """
+<div style="
+position: fixed;
+top: 10px;
+left: 25%;
+width: 50%;
+background-color: white;
+border: 2px solid grey;
+z-index: 9999;
+text-align: center;
+font-size: 22px;
+font-weight: bold;
+padding: 8px;">
+Carte de chaleur de la densité des bornes IRVE
+</div>
+"""
+
+carte_heatmap.get_root().html.add_child(
+    folium.Element(titre_html)
 )
 
-# Légende spécifique à la heatmap
+# =====================================================
+# 6. LÉGENDE
+# =====================================================
+
 legende_heatmap = """
 <div style="
 position: fixed;
-bottom: 50px;
-left: 50px;
-width: 320px;
+bottom: 40px;
+left: 40px;
+width: 350px;
 background-color: white;
 border: 2px solid grey;
 z-index: 9999;
 font-size: 14px;
 padding: 10px;">
-<b>Légende - Densité spatiale</b><br>
-La couleur indique la concentration des bornes dans une zone.<br><br>
-<span style="color:blue;">●</span> Bleu : faible densité<br>
-<span style="color:limegreen;">●</span> Vert : densité moyenne<br>
-<span style="color:yellow;">●</span> Jaune : densité élevée<br>
-<span style="color:red;">●</span> Rouge : très forte densité<br>
-<br>
-<i>Objectif : identifier les zones où les bornes sont les plus concentrées.</i>
+<b>Légende - Densité spatiale</b><br><br>
+
+La couleur représente la concentration des bornes
+dans une zone géographique.<br><br>
+
+<span style="color:blue;">●</span> Faible concentration<br>
+<span style="color:cyan;">●</span> Concentration modérée<br>
+<span style="color:green;">●</span> Concentration moyenne<br>
+<span style="color:yellow;">●</span> Forte concentration<br>
+<span style="color:orange;">●</span> Très forte concentration<br>
+<span style="color:red;">●</span> Concentration maximale<br><br>
+
+<i>
+Le poids des zones très denses est limité afin de mieux faire ressortir
+les autres métropoles françaises.
+</i>
 </div>
 """
 
-carte_heatmap.get_root().html.add_child(folium.Element(legende_heatmap))
+carte_heatmap.get_root().html.add_child(
+    folium.Element(legende_heatmap)
+)
 
-# Sauvegarde de la heatmap
+# =====================================================
+# 7. SAUVEGARDE
+# =====================================================
+
 carte_heatmap.save("heatmap_irve.html")
 
-print("Cartes avec titres et légendes adaptées créées avec succès.")
+print("Heatmap améliorée créée : heatmap_irve.html")
