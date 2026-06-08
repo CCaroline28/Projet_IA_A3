@@ -28,6 +28,87 @@ df = df[
     (df["consolidated_latitude"] >= 41) &
     (df["consolidated_latitude"] <= 51.5)
 ]
+# =====================================================
+# GRAPHIQUES EXPLORATOIRES
+# =====================================================
+
+sns.set_style("whitegrid")
+
+plt.figure(figsize=(10,5))
+sns.histplot(df["puissance_nominale"], bins=30, kde=True, color="steelblue")
+plt.title("Distribution de la puissance nominale")
+plt.show()
+
+if "implantation_station" in df.columns:
+    plt.figure(figsize=(10,6))
+    df["implantation_station"].value_counts().sort_values().plot(kind="barh", color="darkorange")
+    plt.title("Type d'implantation")
+    plt.show()
+
+if "condition_acces" in df.columns:
+    plt.figure(figsize=(6,4))
+    df["condition_acces"].value_counts().plot(kind="bar", color="mediumpurple")
+    plt.title("Condition d'accès")
+    plt.xticks(rotation=45)
+    plt.show()
+
+if "gratuit" in df.columns:
+    plt.figure(figsize=(5,4))
+    df["gratuit"].value_counts().plot(kind="bar", color=["tomato","seagreen"])
+    plt.title("Bornes gratuites / payantes")
+    plt.show()
+
+# =====================================================
+# PRISES
+# =====================================================
+
+prises = {}
+
+if "prise_type_ef" in df.columns:
+    prises["EF"] = (df["prise_type_ef"].astype(str).eq("True")).sum()
+
+if "prise_type_2" in df.columns:
+    prises["Type 2"] = (df["prise_type_2"].astype(str).eq("True")).sum()
+
+if "prise_type_combo_ccs" in df.columns:
+    prises["Combo CCS"] = (df["prise_type_combo_ccs"].astype(str).eq("True")).sum()
+
+if "prise_type_chademo" in df.columns:
+    prises["CHAdeMO"] = (df["prise_type_chademo"].astype(str).eq("True")).sum()
+
+plt.figure(figsize=(7,5))
+plt.bar(prises.keys(), prises.values(),
+        color=["orange","steelblue","green","red"])
+plt.title("Types de prises")
+plt.show()
+
+# =====================================================
+# PDC
+# =====================================================
+
+if "nbre_pdc" in df.columns:
+    plt.figure(figsize=(8,5))
+    df[df["nbre_pdc"] <= 20]["nbre_pdc"].value_counts().sort_index().plot(kind="bar", color="coral")
+    plt.title("Nombre de PDC (≤20)")
+    plt.show()
+
+# =====================================================
+# CATÉGORIE PUISSANCE
+# =====================================================
+
+def categorie_puissance(p):
+    if p <= 22:
+        return "Normale ≤ 22 kW"
+    elif p <= 50:
+        return "Rapide 23-50 kW"
+    elif p <= 150:
+        return "Très rapide 51-150 kW"
+    else:
+        return "Ultra rapide > 150 kW"
+
+df["categorie_puissance"] = df["puissance_nominale"].apply(categorie_puissance)
+df_sample = df.sample(min(5000, len(df)), random_state=42)
+
 
 # =====================================================
 # CRÉATION DES CATÉGORIES DE PUISSANCE
