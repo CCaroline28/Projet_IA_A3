@@ -1,4 +1,5 @@
-#
+#commande pour installer les bibliothèques : pip install pandas folium plotly scikit-learn 
+
 import pandas as pd
 import folium
 from folium.plugins import HeatMap
