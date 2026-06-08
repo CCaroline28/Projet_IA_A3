@@ -236,19 +236,28 @@ points_heatmap = df[
 ].values.tolist()
 
 # Création de la heatmap
+# Carte 3 : Heatmap de densité mieux équilibrée
+carte_heatmap = folium.Map(location=[46.5, 2.5], zoom_start=6)
+
+points_heatmap = df[
+    ["consolidated_latitude", "consolidated_longitude"]
+].values.tolist()
+
 HeatMap(
     points_heatmap,
-    radius=10,
-    blur=15,
-    min_opacity=0.3
+    radius=18,
+    blur=22,
+    min_opacity=0.35,
+    max_zoom=6,
+    max_val=0.6,
+    gradient={
+        0.2: "blue",
+        0.4: "cyan",
+        0.6: "lime",
+        0.8: "yellow",
+        1.0: "red"
+    }
 ).add_to(carte_heatmap)
-
-# Ajout du titre
-ajouter_titre(
-    carte_heatmap,
-    "Carte de chaleur de la densité des bornes IRVE"
-)
-
 # Légende spécifique à la heatmap
 legende_heatmap = """
 <div style="
