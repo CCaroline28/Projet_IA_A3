@@ -1,11 +1,13 @@
+#commande pour installer les bibliothèques : pip install pandas folium plotly scikit-learn 
+
 import pandas as pd
 import folium
 from folium.plugins import HeatMap
 
-# Chargement du fichier CSV nettoyé issu de la partie Big Data
+# 1. Chargement des données
 df = pd.read_csv("export_IA.csv")
 
-# Sélection des colonnes nécessaires pour le besoin 1
+# 2. Sélection des colonnes utiles
 colonnes = [
     "implantation_station",
     "puissance_nominale",
@@ -13,10 +15,9 @@ colonnes = [
     "consolidated_latitude"
 ]
 
-# Suppression des lignes avec valeurs manquantes sur ces colonnes
 df = df[colonnes].dropna()
 
-# Filtrage des coordonnées pour garder uniquement les points situés en France métropolitaine
+# 3. Nettoyage sécurité coordonnées France
 df = df[
     (df["consolidated_longitude"] >= -5.5) &
     (df["consolidated_longitude"] <= 9.5) &
@@ -24,7 +25,7 @@ df = df[
     (df["consolidated_latitude"] <= 51.5)
 ]
 
-# Fonction permettant de transformer une puissance numérique en catégorie
+# 4. Création catégorie de puissance
 def categorie_puissance(p):
     if p <= 22:
         return "Normale ≤ 22 kW"
@@ -35,14 +36,11 @@ def categorie_puissance(p):
     else:
         return "Ultra rapide > 150 kW"
 
-# Création d'une nouvelle colonne contenant la catégorie de puissance
 df["categorie_puissance"] = df["puissance_nominale"].apply(categorie_puissance)
 
-# Création d'une carte centrée sur la France
+# 5. Carte selon type d'implantation
 carte_implantation = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# Ajout des bornes sur la carte selon leur type d'implantation
-# Un échantillon de 5000 lignes est utilisé pour éviter une carte trop lourde
 for _, row in df.sample(min(5000, len(df)), random_state=42).iterrows():
     folium.CircleMarker(
         location=[row["consolidated_latitude"], row["consolidated_longitude"]],
@@ -51,13 +49,12 @@ for _, row in df.sample(min(5000, len(df)), random_state=42).iterrows():
         fill=True
     ).add_to(carte_implantation)
 
-# Sauvegarde de la carte au format HTML
 carte_implantation.save("carte_implantation.html")
 
-# Création d'une deuxième carte centrée sur la France
+# 6. Carte selon catégorie de puissance
+# Carte selon catégorie de puissance
 carte_puissance = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# Association d'une couleur à chaque catégorie de puissance
 couleurs = {
     "Normale ≤ 22 kW": "blue",
     "Rapide 23-50 kW": "green",
@@ -65,7 +62,6 @@ couleurs = {
     "Ultra rapide > 150 kW": "red"
 }
 
-# Ajout des bornes sur la carte avec une couleur selon leur catégorie de puissance
 for _, row in df.sample(min(5000, len(df)), random_state=42).iterrows():
     folium.CircleMarker(
         location=[row["consolidated_latitude"], row["consolidated_longitude"]],
@@ -73,25 +69,43 @@ for _, row in df.sample(min(5000, len(df)), random_state=42).iterrows():
         color=couleurs[row["categorie_puissance"]],
         fill=True,
         fill_color=couleurs[row["categorie_puissance"]],
+        fill_opacity=0.7,
         popup=f"Puissance : {row['puissance_nominale']} kW<br>Catégorie : {row['categorie_puissance']}"
     ).add_to(carte_puissance)
 
-# Sauvegarde de la carte des puissances
-carte_puissance.save("carte_puissance.html")
+# Légende
+legende_html = """
+<div style="
+position: fixed;
+bottom: 50px;
+left: 50px;
+width: 230px;
+background-color: white;
+border: 2px solid grey;
+z-index: 9999;
+font-size: 14px;
+padding: 10px;
+">
+<b>Catégorie de puissance</b><br>
+<span style="color:blue;">●</span> Normale ≤ 22 kW<br>
+<span style="color:green;">●</span> Rapide 23-50 kW<br>
+<span style="color:orange;">●</span> Très rapide 51-150 kW<br>
+<span style="color:red;">●</span> Ultra rapide > 150 kW
+</div>
+"""
 
-# Création de la carte de chaleur
+carte_puissance.get_root().html.add_child(folium.Element(legende_html))
+
+carte_puissance.save("carte_puissance.html")
+# 7. Heatmap densité
 carte_heatmap = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# Récupération des coordonnées sous forme de liste
 points_heatmap = df[
     ["consolidated_latitude", "consolidated_longitude"]
 ].values.tolist()
 
-# Ajout de la heatmap pour visualiser les zones de forte densité
 HeatMap(points_heatmap, radius=10, blur=15).add_to(carte_heatmap)
 
-# Sauvegarde de la heatmap
 carte_heatmap.save("heatmap_irve.html")
 
-# Message de confirmation
 print("Cartes créées avec succès.")
