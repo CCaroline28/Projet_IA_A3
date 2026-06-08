@@ -258,6 +258,7 @@ HeatMap(
         1.0: "red"
     }
 ).add_to(carte_heatmap)
+)
 # Légende spécifique à la heatmap
 legende_heatmap = """
 <div style="
