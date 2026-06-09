@@ -270,6 +270,15 @@ kmeans_final = KMeans(
 )
 
 df["cluster"] = kmeans_final.fit_predict(X)
+import joblib
+
+joblib.dump(kmeans_final, "modele_kmeans.pkl")
+
+print("Modèle sauvegardé : modele_kmeans.pkl")
+
+print("\nRépartition des bornes par cluster :")
+print(df["cluster"].value_counts().sort_index())
+
 
 print("\nRépartition des bornes par cluster :")
 print(df["cluster"].value_counts().sort_index())
