@@ -101,6 +101,19 @@ plt.savefig("carte_clusteringKMeans.png", dpi=150, bbox_inches="tight")
 print(df["cluster"].value_counts())
 print(df.groupby("cluster")[features].mean())
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 ######### K - means ( Aya ) ##########
 import pandas as pd
 
