@@ -176,3 +176,13 @@ simplicité de visualisation.
 Formulation rapport
 
 Le choix du nombre de clusters a été réalisé à l'aide de la méthode du coude et de trois métriques d'évaluation. La méthode du coude montre une rupture de pente autour de K=5. Le coefficient de silhouette atteint sa valeur maximale pour K=5 (0,5028), indiquant une bonne séparation des groupes. Bien que l'indice de Calinski-Harabasz continue d'augmenter pour des valeurs de K plus élevées et que l'indice de Davies-Bouldin soit légèrement meilleur pour K=12, ces solutions produisent un découpage plus fin et moins interprétable. Le choix final s'est donc porté sur K=5, qui représente le meilleur compromis entre performance et lisibilité des clusters.
+
+##################CARTE #####################
+Répartition des bornes par cluster :
+cluster
+0    14478
+1    10690
+2     7497
+3     4971
+4     7085
+Name: count, dtype: int64
