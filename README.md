@@ -186,3 +186,15 @@ cluster
 3     4971
 4     7085
 Name: count, dtype: int64
+########### Script + Exel ##################
+### Script de prédiction du cluster
+
+Afin de répondre à la dernière exigence du besoin 2, un script de prédiction a été développé. Ce script permet de déterminer automatiquement le cluster associé à une borne de recharge à partir de ses coordonnées géographiques (latitude et longitude).
+
+Le modèle K-Means n'est pas réentraîné à chaque utilisation. Conformément aux consignes du projet, le modèle préalablement entraîné est sauvegardé puis chargé directement lors de l'exécution du script. Cette approche permet de réduire considérablement le temps de calcul et garantit la cohérence des résultats obtenus.
+
+L'utilisateur saisit les coordonnées de la borne à analyser, puis le script charge le modèle enregistré et renvoie le cluster correspondant.
+
+Afin de faciliter l'utilisation du script, un fichier Excel complémentaire contenant les coordonnées moyennes des principales communes a également été généré. Ce fichier permet à un utilisateur ne connaissant pas les coordonnées GPS exactes d'une borne de retrouver facilement les coordonnées associées à une ville donnée avant de lancer la prédiction.
+
+Cette solution améliore l'ergonomie du système tout en conservant la logique du modèle de clustering, qui repose exclusivement sur les coordonnées géographiques utilisées lors de l'apprentissage.
