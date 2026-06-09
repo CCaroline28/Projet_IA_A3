@@ -66,3 +66,113 @@ Une seconde carte à points colorés a été construite afin de représenter les
 Une carte de chaleur a été utilisée pour représenter la densité spatiale des bornes de recharge. Cette méthode est particulièrement adaptée à l’identification des zones de forte concentration. Les couleurs chaudes (jaune, orange, rouge) mettent en évidence les territoires les plus équipés tandis que les couleurs froides (bleu, cyan) correspondent aux zones moins denses.
 
 Cette représentation permet d’identifier rapidement les principaux pôles de déploiement des infrastructures de recharge en France, notamment autour des grandes métropoles et des axes de mobilité importants.
+
+########################################
+Methode de coude 
+Analyse complète des métriques
+1. Coefficient de Silhouette
+
+Rappel :
+
+proche de 1 → excellent clustering
+proche de 0 → clusters qui se chevauchent
+négatif → mauvais clustering
+
+Résultats :
+
+K	Silhouette
+4	0.4729
+5	0.5028
+6	0.5013
+12	0.4977
+
+👉 Le meilleur score est obtenu pour :
+
+K = 5
+
+C'est un argument très fort.
+
+2. Indice de Calinski-Harabasz
+
+Rappel :
+
+Plus la valeur est élevée, mieux les clusters sont :
+compacts à l'intérieur
+séparés entre eux
+
+Résultats :
+
+K	Calinski
+5	55424
+10	58646
+12	63581
+15	64353
+
+On constate que :
+
+Le score augmente presque continuellement
+lorsque K augmente.
+
+C'est un comportement classique.
+
+Donc si on regardait uniquement Calinski, on choisirait :
+
+K = 15
+
+Mais cela produirait beaucoup de clusters, difficiles à interpréter géographiquement.
+
+👉 C'est pourquoi Calinski ne doit pas être utilisé seul.
+
+3. Indice de Davies-Bouldin
+
+Rappel :
+
+Plus petit = meilleur
+
+Résultats :
+
+K	Davies
+5	0.6905
+11	0.6921
+12	0.6785
+
+Le meilleur score est :
+
+K = 12
+
+Mais l'amélioration par rapport à K=5 est faible :
+
+0.6905 → 0.6785
+
+Alors qu'on passe de :
+
+5 clusters → 12 clusters
+
+La perte en lisibilité n'est donc pas justifiée.
+
+Analyse globale correcte
+Critère	Meilleur K
+Méthode du coude	5
+Silhouette	5
+Calinski-Harabasz	15
+Davies-Bouldin	12
+
+On observe que :
+
+la méthode du coude indique K≈5 ;
+le coefficient de silhouette est maximal pour K=5 ;
+Calinski-Harabasz favorise des valeurs élevées de K ;
+Davies-Bouldin est minimal pour K=12 mais l'amélioration reste faible.
+
+Ainsi :
+
+K = 5
+
+constitue le meilleur compromis entre :
+
+qualité du clustering,
+interprétation géographique,
+simplicité de visualisation.
+Formulation rapport
+
+Le choix du nombre de clusters a été réalisé à l'aide de la méthode du coude et de trois métriques d'évaluation. La méthode du coude montre une rupture de pente autour de K=5. Le coefficient de silhouette atteint sa valeur maximale pour K=5 (0,5028), indiquant une bonne séparation des groupes. Bien que l'indice de Calinski-Harabasz continue d'augmenter pour des valeurs de K plus élevées et que l'indice de Davies-Bouldin soit légèrement meilleur pour K=12, ces solutions produisent un découpage plus fin et moins interprétable. Le choix final s'est donc porté sur K=5, qui représente le meilleur compromis entre performance et lisibilité des clusters.
