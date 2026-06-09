@@ -1,3 +1,4 @@
+################## K - means ( Manon )
 import pandas as pd
 import folium
 import joblib
@@ -140,3 +141,267 @@ plt.close()
 
 print(df["cluster"].value_counts())
 print(df.groupby("cluster")[features].mean())
+
+
+######### K - means ( Aya ) ##########
+import pandas as pd
+
+# =====================================================
+# 1. CHARGEMENT DES DONNÉES
+# =====================================================
+
+# Chargement du fichier CSV nettoyé
+df = pd.read_csv("export_IA.csv")
+
+print("Nombre de lignes initial :", len(df))
+
+# =====================================================
+# 2. SÉLECTION DES VARIABLES
+# =====================================================
+
+# Pour le clustering géographique,
+# seules les coordonnées sont nécessaires
+
+df = df[
+    [
+        "consolidated_latitude",
+        "consolidated_longitude"
+    ]
+]
+
+# =====================================================
+# 3. NETTOYAGE
+# =====================================================
+
+# Suppression des lignes avec coordonnées manquantes
+
+df = df.dropna()
+
+# Conversion en format numérique
+
+df["consolidated_latitude"] = pd.to_numeric(
+    df["consolidated_latitude"],
+    errors="coerce"
+)
+
+df["consolidated_longitude"] = pd.to_numeric(
+    df["consolidated_longitude"],
+    errors="coerce"
+)
+
+df = df.dropna()
+
+# =====================================================
+# 4. FILTRAGE FRANCE MÉTROPOLITAINE
+# =====================================================
+
+df = df[
+    (df["consolidated_longitude"] >= -5.5) &
+    (df["consolidated_longitude"] <= 9.5) &
+    (df["consolidated_latitude"] >= 41) &
+    (df["consolidated_latitude"] <= 51.5)
+]
+
+print("Nombre de lignes après nettoyage :", len(df))
+
+# =====================================================
+# 5. MATRICE POUR K-MEANS
+# =====================================================
+
+X = df[
+    [
+        "consolidated_latitude",
+        "consolidated_longitude"
+    ]
+]
+
+print("\nAperçu des données utilisées :")
+print(X.head())
+
+print("\nDimensions de la matrice :")
+print(X.shape)
+
+# =====================================================
+# 6. MÉTHODE DU COUDE
+# =====================================================
+
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+
+inerties = []
+
+K_range = range(2, 16)
+
+for k in K_range:
+
+    kmeans = KMeans(
+        n_clusters=k,
+        random_state=42,
+        n_init=10
+    )
+
+    kmeans.fit(X)
+
+    inerties.append(kmeans.inertia_)
+
+# =====================================================
+# 7. GRAPHIQUE DU COUDE
+# =====================================================
+
+plt.figure(figsize=(8, 5))
+
+plt.plot(
+    K_range,
+    inerties,
+    marker="o"
+)
+
+plt.title("Méthode du coude")
+plt.xlabel("Nombre de clusters (K)")
+plt.ylabel("Inertie")
+
+plt.grid(True)
+
+plt.show()
+from sklearn.metrics import (
+    silhouette_score,
+    calinski_harabasz_score,
+    davies_bouldin_score
+)
+
+print("\nÉvaluation des différents K :\n")
+
+for k in range(2, 16):
+
+    kmeans = KMeans(
+        n_clusters=k,
+        random_state=42,
+        n_init=10
+    )
+
+    labels = kmeans.fit_predict(X)
+
+    silhouette = silhouette_score(X, labels)
+
+    calinski = calinski_harabasz_score(
+        X,
+        labels
+    )
+
+    davies = davies_bouldin_score(
+        X,
+        labels
+    )
+
+    print(
+        f"K={k} | "
+        f"Silhouette={silhouette:.4f} | "
+        f"Calinski={calinski:.2f} | "
+        f"Davies={davies:.4f}"
+    )
+    import folium
+
+# =====================================================
+# 8. K-MEANS FINAL AVEC K OPTIMAL
+# =====================================================
+
+kmeans_final = KMeans(
+    n_clusters=5,
+    random_state=42,
+    n_init=10
+)
+
+df["cluster"] = kmeans_final.fit_predict(X)
+
+print("\nRépartition des bornes par cluster :")
+print(df["cluster"].value_counts().sort_index())
+
+df.to_csv("bornes_clusters_kmeans.csv", index=False)
+
+# =====================================================
+# 9. CARTE DES CLUSTERS
+# =====================================================
+
+carte = folium.Map(
+    location=[46.5, 2.5],
+    zoom_start=6,
+    tiles="OpenStreetMap"
+)
+
+couleurs_clusters = {
+    0: "red",
+    1: "blue",
+    2: "green",
+    3: "orange",
+    4: "purple"
+}
+
+df_sample = df.sample(min(7000, len(df)), random_state=42)
+
+for _, row in df_sample.iterrows():
+    cluster = int(row["cluster"])
+    couleur = couleurs_clusters.get(cluster, "gray")
+
+    folium.CircleMarker(
+        location=[
+            row["consolidated_latitude"],
+            row["consolidated_longitude"]
+        ],
+        radius=3,
+        color=couleur,
+        fill=True,
+        fill_color=couleur,
+        fill_opacity=0.7,
+        popup=f"""
+        <b>Cluster :</b> {cluster}<br>
+        <b>Latitude :</b> {row['consolidated_latitude']}<br>
+        <b>Longitude :</b> {row['consolidated_longitude']}
+        """
+    ).add_to(carte)
+
+titre_html = """
+<div style="
+position: fixed;
+top: 10px;
+left: 25%;
+width: 50%;
+background-color: white;
+border: 2px solid grey;
+z-index: 9999;
+text-align: center;
+font-size: 22px;
+font-weight: bold;
+padding: 8px;">
+Carte des clusters K-Means des bornes IRVE
+</div>
+"""
+
+carte.get_root().html.add_child(folium.Element(titre_html))
+
+legende_html = """
+<div style="
+position: fixed;
+bottom: 40px;
+left: 40px;
+width: 300px;
+background-color: white;
+border: 2px solid grey;
+z-index: 9999;
+font-size: 14px;
+padding: 10px;">
+<b>Légende - Clusters K-Means</b><br><br>
+<span style="color:red;">●</span> Cluster 0<br>
+<span style="color:blue;">●</span> Cluster 1<br>
+<span style="color:green;">●</span> Cluster 2<br>
+<span style="color:orange;">●</span> Cluster 3<br>
+<span style="color:purple;">●</span> Cluster 4<br><br>
+<i>Chaque couleur représente un regroupement géographique de bornes.</i>
+</div>
+"""
+
+carte.get_root().html.add_child(folium.Element(legende_html))
+
+carte.save("carte_clusters_kmeans.html")
+
+print("\nCarte créée : carte_clusters_kmeans.html")
+print("CSV créé : bornes_clusters_kmeans.csv")
