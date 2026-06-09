@@ -57,7 +57,9 @@ for col in bool_cols:
 
 df = df.dropna(subset=features)
 print("Taille du dataset :", len(df))
-print("Distribution de la cible :\n", df[cible].value_counts())
+print(
+    df[cible].value_counts(normalize=True) * 100
+)
 
 # =====================================================
 # 2. ENCODAGE DE LA CIBLE (texte → nombre)
